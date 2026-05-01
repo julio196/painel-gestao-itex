@@ -12,11 +12,24 @@
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     
-    <!-- Compilador Babel (permite rodar JSX no navegador) -->
+    <!-- Compilador Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
+    <!-- Firebase SDK (Modular) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // Expondo as funções do Firebase para uso dentro do React/Babel
+        window.FirebaseUI = { 
+            initializeApp, getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, 
+            getFirestore, doc, setDoc, onSnapshot, collection 
+        };
+    </script>
+
     <style>
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
     </style>
@@ -25,667 +38,826 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useMemo } = React;
-
-        // Ícones embutidos (Substituição da biblioteca Lucide para garantir execução offline do pacote gráfico)
-        const IconCalendar = ({className}) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>;
-        const IconDollarSign = ({className}) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>;
-        const IconClock = ({className}) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>;
-        const IconAlertCircle = ({className}) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>;
-        const IconCheckCircle2 = ({className}) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="m9 12 2 2 4-4"></path></svg>;
-        const IconChevronRight = ({className}) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>;
-        const IconSun = ({className}) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg>;
-        const IconMoon = ({className}) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></svg>;
-        const IconTrendingUp = ({className}) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg>;
-        const IconTrendingDown = ({className}) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"></polyline><polyline points="16 17 22 17 22 11"></polyline></svg>;
-        const IconScale = ({className}) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"></path><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"></path><path d="M7 21h10"></path><path d="M12 3v18"></path><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"></path></svg>;
-        const IconActivity = ({className}) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>;
-        const IconLock = ({className}) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>;
-        const IconUser = ({className}) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>;
-        const IconLogOut = ({className}) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>;
-
-        const CHART_COLORS = [
-          '#223B4D', '#B07905', '#FFD000', '#4A6984',
-          '#D69E2E', '#F6E05E', '#1A202C', '#744210', '#975A16'
-        ];
-
-        // Constantes do Baseline Contratual
-        const BASELINE_COST = 766085;
-        const BASELINE_DURATION = 120;
-        const BASELINE_PERCENTAGE = 100;
-
-        const generatePieSlice = (value, total, cumulativeValue) => {
-          if (value === 0 || total === 0) return '';
-          if (value === total) return 'M 1 0 A 1 1 0 1 1 0.999 -0.01 Z'; 
-
-          const startAngle = (cumulativeValue / total) * 2 * Math.PI;
-          const endAngle = ((cumulativeValue + value) / total) * 2 * Math.PI;
-          
-          const startX = Math.cos(startAngle);
-          const startY = Math.sin(startAngle);
-          const endX = Math.cos(endAngle);
-          const endY = Math.sin(endAngle);
-          
-          const largeArcFlag = (value / total) > 0.5 ? 1 : 0;
-          
-          return `M 0 0 L ${startX} ${startY} A 1 1 0 ${largeArcFlag} 1 ${endX} ${endY} Z`;
-        };
-
-        function App() {
-          // Estados de Autenticação
-          const [isAuthenticated, setIsAuthenticated] = useState(false);
-          const [username, setUsername] = useState('');
-          const [password, setPassword] = useState('');
-          const [loginError, setLoginError] = useState(false);
-
-          // Estados da Aplicação
-          const [projectStartDate, setProjectStartDate] = useState('2026-05-04'); 
-          const [isDarkMode, setIsDarkMode] = useState(false);
-          const [chartMetric, setChartMetric] = useState('cost'); 
-          
-          const [paymentPercentages, setPaymentPercentages] = useState([
-            { id: 1, trigger: 'Sinal (Assinatura/Início)', percentage: 40 },
-            { id: 2, trigger: '30 DDI (Dias Decorridos da Instalação)', percentage: 25 },
-            { id: 3, trigger: '60 DDI (Dias Decorridos da Instalação)', percentage: 25 },
-            { id: 4, trigger: 'Entrega Técnica e Aceite Final', percentage: 10 }
-          ]);
-
-          const [tasks, setTasks] = useState([
-            { id: 1, name: 'Serviços Preliminares e Logística', duration: 5, cost: 30000 },
-            { id: 2, name: 'Demolição, Remoção e Descarte', duration: 15, cost: 60000 },
-            { id: 3, name: 'Instalação do Sistema de Piso Flutuante', duration: 10, cost: 100000 },
-            { id: 4, name: 'Execução do Contrapiso Flutuante', duration: 10, cost: 90000 },
-            { id: 5, name: 'Cura do Concreto (Restrição Técnica - Cláusula 8.3)', duration: 22, cost: 0 },
-            { id: 6, name: 'Remoção e Instalação de Novo Forro Acústico', duration: 20, cost: 180000 },
-            { id: 7, name: 'Instalação dos Revestimentos Finais (Piso Vinílico/Borracha)', duration: 15, cost: 156085 },
-            { id: 8, name: 'Instalação de Baffles e Acabamentos', duration: 15, cost: 100000 },
-            { id: 9, name: 'Entrega Técnica e Limpeza Final', duration: 8, cost: 50000 }
-          ]);
-
-          // Rotina de Login
-          const handleLogin = (e) => {
-            e.preventDefault();
-            // Credenciais de homologação corporativa
-            if (username === 'admin' && password === 'itex2026') {
-              setIsAuthenticated(true);
-              setLoginError(false);
-            } else {
-              setLoginError(true);
+        // Aguardar o carregamento do Firebase Module antes de inicializar o React
+        const renderApp = () => {
+            if (!window.FirebaseUI) {
+                setTimeout(renderApp, 50);
+                return;
             }
-          };
 
-          const handleLogout = () => {
-            setIsAuthenticated(false);
-            setUsername('');
-            setPassword('');
-          };
+            const { useState, useEffect, useMemo, useRef } = React;
+            const { initializeApp, getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, getFirestore, doc, setDoc, onSnapshot } = window.FirebaseUI;
 
-          const addBusinessDays = (startDate, daysToAdd) => {
-            let date = new Date(startDate);
-            let addedDays = 0;
-            while (addedDays < daysToAdd) {
-              date.setDate(date.getDate() + 1);
-              if (date.getDay() !== 0 && date.getDay() !== 6) {
-                addedDays++;
-              }
-            }
-            return date;
-          };
-
-          const formatDate = (date) => {
-            return date.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
-          };
-
-          const formatCurrency = (value) => {
-            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-          };
-
-          const schedule = useMemo(() => {
-            let currentDate = new Date(projectStartDate);
-            currentDate.setUTCHours(12, 0, 0, 0); 
+            // ==========================================
+            // CONFIGURAÇÃO DE INFRAESTRUTURA (FIREBASE)
+            // ==========================================
+            const isLocal = typeof __firebase_config === 'undefined';
             
-            return tasks.map(task => {
-              const startDate = new Date(currentDate);
-              const endDate = addBusinessDays(startDate, Math.max(0, task.duration - 1)); 
-              currentDate = addBusinessDays(endDate, 1);
-              
-              return { ...task, startDate, endDate };
-            });
-          }, [tasks, projectStartDate]);
+            // Credenciais injetadas a partir do seu projeto ITEX-Gestao-Obras
+            const firebaseConfig = isLocal ? {
+                apiKey: "AIzaSyD55qNqTDbZT5SwKV6XddmxWeqDOES2oBg",
+                authDomain: "itex-gestao-obras.firebaseapp.com",
+                projectId: "itex-gestao-obras",
+                storageBucket: "itex-gestao-obras.firebasestorage.app",
+                messagingSenderId: "151022823634",
+                appId: "1:151022823634:web:3520dd88d2a09fdbda650b"
+            } : JSON.parse(__firebase_config);
 
-          const projectMetrics = useMemo(() => {
-            const totalCost = tasks.reduce((acc, curr) => acc + Number(curr.cost), 0);
-            const totalDuration = tasks.reduce((acc, curr) => acc + Number(curr.duration), 0);
-            const projectEndDate = schedule.length > 0 ? schedule[schedule.length - 1].endDate : new Date();
+            const app = initializeApp(firebaseConfig);
+            const auth = getAuth(app);
+            const db = getFirestore(app);
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'itex-gestao-gantt';
 
-            return { totalCost, totalDuration, projectEndDate };
-          }, [tasks, schedule]);
+            // Biblioteca de Ícones Corporativos
+            const IconCalendar = ({className}) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>;
+            const IconDollarSign = ({className}) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>;
+            const IconClock = ({className}) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>;
+            const IconAlertCircle = ({className}) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>;
+            const IconCheckCircle2 = ({className}) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="m9 12 2 2 4-4"></path></svg>;
+            const IconChevronRight = ({className}) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>;
+            const IconSun = ({className}) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg>;
+            const IconMoon = ({className}) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></svg>;
+            const IconTrendingUp = ({className}) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg>;
+            const IconTrendingDown = ({className}) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"></polyline><polyline points="16 17 22 17 22 11"></polyline></svg>;
+            const IconScale = ({className}) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"></path><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"></path><path d="M7 21h10"></path><path d="M12 3v18"></path><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"></path></svg>;
+            const IconActivity = ({className}) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>;
+            const IconLock = ({className}) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>;
+            const IconUser = ({className}) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>;
+            const IconLogOut = ({className}) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>;
+            const IconBarChart = ({className}) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>;
+            const IconPieChart = ({className}) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>;
+            const IconSave = ({className}) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>;
+            const IconEye = ({className}) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>;
+            const IconEyeOff = ({className}) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"></path><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"></path><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"></path><line x1="2" y1="2" x2="22" y2="22"></line></svg>;
 
-          const payments = useMemo(() => {
-            const total = projectMetrics.totalCost;
-            return paymentPercentages.map(p => ({
-              ...p,
-              value: total * (p.percentage / 100)
-            }));
-          }, [projectMetrics.totalCost, paymentPercentages]);
+            const CHART_COLORS = [
+              '#223B4D', '#B07905', '#FFD000', '#4A6984',
+              '#D69E2E', '#F6E05E', '#1A202C', '#744210', '#975A16'
+            ];
 
-          const totalPercentage = useMemo(() => {
-            return paymentPercentages.reduce((acc, curr) => acc + Number(curr.percentage), 0);
-          }, [paymentPercentages]);
+            const BASELINE_COST = 766085;
+            const BASELINE_DURATION = 120;
+            const BASELINE_PERCENTAGE = 100;
 
-          const deviations = useMemo(() => {
-            const costDeviation = projectMetrics.totalCost - BASELINE_COST;
-            const durationDeviation = projectMetrics.totalDuration - BASELINE_DURATION;
-            const percentageDeviation = totalPercentage - BASELINE_PERCENTAGE;
-
-            return {
-              cost: {
-                value: costDeviation,
-                isOverrun: costDeviation > 0,
-                isSavings: costDeviation < 0,
-                percentage: ((costDeviation / BASELINE_COST) * 100).toFixed(2)
-              },
-              duration: {
-                value: durationDeviation,
-                isOverrun: durationDeviation > 0,
-                isSavings: durationDeviation < 0
-              },
-              percentage: {
-                value: percentageDeviation,
-                isOverrun: percentageDeviation > 0,
-                isSavings: percentageDeviation < 0
-              }
+            const addBusinessDays = (startDate, daysToAdd) => {
+                let date = new Date(startDate);
+                date.setUTCHours(12, 0, 0, 0);
+                let addedDays = 0;
+                while (addedDays < daysToAdd) {
+                  date.setDate(date.getDate() + 1);
+                  if (date.getDay() !== 0 && date.getDay() !== 6) addedDays++;
+                }
+                return date;
             };
-          }, [projectMetrics, totalPercentage]);
 
-          const handleTaskChange = (index, field, value) => {
-            const newTasks = [...tasks];
-            newTasks[index] = { ...newTasks[index], [field]: Number(value) };
-            setTasks(newTasks);
-          };
+            const getBusinessDaysBetween = (start, end) => {
+                let count = 0;
+                let current = new Date(start);
+                current.setUTCHours(12, 0, 0, 0);
+                let endDate = new Date(end);
+                endDate.setUTCHours(12, 0, 0, 0);
+                while(current <= endDate) {
+                    if (current.getDay() !== 0 && current.getDay() !== 6) count++;
+                    current.setDate(current.getDate() + 1);
+                }
+                return count;
+            };
 
-          const handlePaymentChange = (index, value) => {
-            const newPayments = [...paymentPercentages];
-            newPayments[index] = { ...newPayments[index], percentage: Number(value) };
-            setPaymentPercentages(newPayments);
-          };
+            const diffDays = (start, end) => {
+                const date1 = new Date(start);
+                const date2 = new Date(end);
+                const diffTime = Math.abs(date2 - date1);
+                return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            };
 
-          const totalChartValue = useMemo(() => {
-            return tasks.reduce((sum, task) => sum + Number(task[chartMetric]), 0);
-          }, [tasks, chartMetric]);
+            const generatePieSlice = (value, total, cumulativeValue) => {
+              if (value === 0 || total === 0) return '';
+              if (value === total) return 'M 1 0 A 1 1 0 1 1 0.999 -0.01 Z'; 
+              const startAngle = (cumulativeValue / total) * 2 * Math.PI;
+              const endAngle = ((cumulativeValue + value) / total) * 2 * Math.PI;
+              const startX = Math.cos(startAngle);
+              const startY = Math.sin(startAngle);
+              const endX = Math.cos(endAngle);
+              const endY = Math.sin(endAngle);
+              const largeArcFlag = (value / total) > 0.5 ? 1 : 0;
+              return `M 0 0 L ${startX} ${startY} A 1 1 0 ${largeArcFlag} 1 ${endX} ${endY} Z`;
+            };
 
-          const pieChartSlices = useMemo(() => {
-            let cumulativeValue = 0;
-            return tasks.map((task, index) => {
-              const value = Number(task[chartMetric]);
-              if (value === 0) return null;
+            function App() {
+              // Estados de Autenticação e Sincronização
+              const [user, setUser] = useState(null);
+              const [isAuthenticated, setIsAuthenticated] = useState(false);
+              const [username, setUsername] = useState('');
+              const [password, setPassword] = useState('');
+              const [showPassword, setShowPassword] = useState(false);
+              const [loginError, setLoginError] = useState(false);
               
-              const path = generatePieSlice(value, totalChartValue, cumulativeValue);
-              cumulativeValue += value;
+              const [dataLoaded, setDataLoaded] = useState(false);
+              const [lastModified, setLastModified] = useState(null);
+              const [isSaving, setIsSaving] = useState(false);
+              const firstLoadRef = useRef(true);
+
+              // Navegação
+              const [activeTab, setActiveTab] = useState('schedule'); 
+              const [isDarkMode, setIsDarkMode] = useState(false);
+              const [chartMetric, setChartMetric] = useState('cost');
               
-              return {
-                id: task.id,
-                path,
-                color: CHART_COLORS[index % CHART_COLORS.length],
-                name: task.name
+              // Estados Editáveis do Projeto
+              const [projectStartDate, setProjectStartDate] = useState('2026-05-04'); 
+              const [paymentPercentages, setPaymentPercentages] = useState([
+                { id: 1, trigger: 'Sinal (Assinatura/Início)', percentage: 40 },
+                { id: 2, trigger: '30 DDI (Dias Decorridos da Instalação)', percentage: 25 },
+                { id: 3, trigger: '60 DDI (Dias Decorridos da Instalação)', percentage: 25 },
+                { id: 4, trigger: 'Entrega Técnica e Aceite Final', percentage: 10 }
+              ]);
+
+              const [tasks, setTasks] = useState([
+                { id: 1, name: 'Serviços Preliminares e Logística', duration: 5, cost: 30000, start: '2026-05-04' },
+                { id: 2, name: 'Demolição, Remoção e Descarte', duration: 15, cost: 60000, start: '2026-05-11' },
+                { id: 3, name: 'Instalação do Sistema de Piso Flutuante', duration: 10, cost: 100000, start: '2026-06-01' },
+                { id: 4, name: 'Execução do Contrapiso Flutuante', duration: 10, cost: 90000, start: '2026-06-15' },
+                { id: 5, name: 'Cura do Concreto (Restrição Técnica)', duration: 22, cost: 0, start: '2026-06-29' },
+                { id: 6, name: 'Remoção e Instalação de Novo Forro', duration: 20, cost: 180000, start: '2026-07-29' },
+                { id: 7, name: 'Instalação dos Revestimentos Finais', duration: 15, cost: 156085, start: '2026-08-26' },
+                { id: 8, name: 'Instalação de Baffles e Acabamentos', duration: 15, cost: 100000, start: '2026-09-16' },
+                { id: 9, name: 'Entrega Técnica e Limpeza Final', duration: 8, cost: 50000, start: '2026-10-07' }
+              ]);
+
+              // ==========================================
+              // HOOKS DE INFRAESTRUTURA (FIREBASE)
+              // ==========================================
+              useEffect(() => {
+                  const initAuth = async () => {
+                      try {
+                          if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                              await signInWithCustomToken(auth, __initial_auth_token);
+                          } else {
+                              await signInAnonymously(auth);
+                          }
+                      } catch (e) {
+                          console.error("Erro na autenticação silenciosa:", e);
+                      }
+                  };
+                  initAuth();
+                  const unsubscribe = onAuthStateChanged(auth, setUser);
+                  return () => unsubscribe();
+              }, []);
+
+              // Leitura Inicial dos Dados
+              useEffect(() => {
+                  if (!user) return;
+                  const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'projectData', 'main');
+                  const unsubscribe = onSnapshot(docRef, (docSnap) => {
+                      if (firstLoadRef.current) {
+                          if (docSnap.exists()) {
+                              const data = docSnap.data();
+                              if (data.tasks) setTasks(data.tasks);
+                              if (data.paymentPercentages) setPaymentPercentages(data.paymentPercentages);
+                              if (data.projectStartDate) setProjectStartDate(data.projectStartDate);
+                              if (data.lastModified) setLastModified(data.lastModified);
+                          }
+                          firstLoadRef.current = false;
+                          setDataLoaded(true);
+                      }
+                  }, (error) => {
+                      console.error("Erro ao sincronizar dados da nuvem:", error);
+                      firstLoadRef.current = false;
+                      setDataLoaded(true);
+                  });
+                  return () => unsubscribe();
+              }, [user]);
+
+              // Auto-Save: Persistência após alterações (Debounce de 1 segundo)
+              useEffect(() => {
+                  if (!user || !dataLoaded) return;
+                  
+                  setIsSaving(true);
+                  const timeoutId = setTimeout(() => {
+                      const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'projectData', 'main');
+                      const now = new Date().toISOString();
+                      setDoc(docRef, {
+                          tasks,
+                          paymentPercentages,
+                          projectStartDate,
+                          lastModified: now
+                      }).then(() => {
+                          setLastModified(now);
+                          setIsSaving(false);
+                      }).catch(e => {
+                          console.error("Erro ao salvar:", e);
+                          setIsSaving(false);
+                      });
+                  }, 1000);
+
+                  return () => clearTimeout(timeoutId);
+              }, [tasks, paymentPercentages, projectStartDate, user, dataLoaded]);
+
+              // ==========================================
+              // LÓGICA DE NEGÓCIO
+              // ==========================================
+              const handleLogin = (e) => {
+                e.preventDefault();
+                if (username === 'admin' && password === 'itex2026') {
+                  setIsAuthenticated(true);
+                  setLoginError(false);
+                } else {
+                  setLoginError(true);
+                }
               };
-            }).filter(Boolean);
-          }, [tasks, chartMetric, totalChartValue]);
 
+              const handleLogout = () => {
+                setIsAuthenticated(false);
+                setUsername('');
+                setPassword('');
+              };
 
-          // ==========================================
-          // RENDERIZAÇÃO DA TELA DE LOGIN (GATEWAY)
-          // ==========================================
-          if (!isAuthenticated) {
-            return (
-              <div className={`min-h-screen flex items-center justify-center p-4 font-sans transition-colors duration-300 ${isDarkMode ? 'bg-[#121F28] text-[#E3DBD0]' : 'bg-[#E3DBD0]/20 text-[#223B4D]'}`}>
+              const formatDate = (date) => {
+                return new Date(date).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+              };
+
+              const formatCurrency = (value) => {
+                return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+              };
+
+              const schedule = useMemo(() => {
+                return tasks.map(task => {
+                  const startDate = new Date(task.start);
+                  startDate.setUTCHours(12, 0, 0, 0);
+                  const endDate = addBusinessDays(startDate, Math.max(0, task.duration - 1));
+                  return { ...task, startDate, endDate };
+                });
+              }, [tasks]);
+
+              const projectMetrics = useMemo(() => {
+                if (schedule.length === 0) return { totalCost: 0, totalDuration: 0, globalStart: new Date(), globalEnd: new Date() };
                 
-                {/* Toggle Dark Mode Solto */}
-                <button 
-                  onClick={() => setIsDarkMode(!isDarkMode)}
-                  className={`absolute top-6 right-6 p-2 rounded-lg border transition-colors flex items-center justify-center ${isDarkMode ? 'bg-[#1C3041] border-[#B07905]/50 text-[#FFD000] hover:bg-[#2A455C]' : 'bg-white border-[#B07905]/30 text-[#B07905] hover:bg-[#E3DBD0]/50'}`}
-                  title="Alternar Modo de Visualização"
-                >
-                  {isDarkMode ? <IconSun className="w-5 h-5" /> : <IconMoon className="w-5 h-5" />}
-                </button>
+                const totalCost = schedule.reduce((acc, curr) => acc + Number(curr.cost), 0);
+                const totalDuration = schedule.reduce((acc, curr) => acc + Number(curr.duration), 0);
+                
+                const datesStart = schedule.map(t => t.startDate.getTime());
+                const datesEnd = schedule.map(t => t.endDate.getTime());
+                
+                const globalStart = new Date(Math.min(...datesStart));
+                const globalEnd = new Date(Math.max(...datesEnd));
+                
+                return { totalCost, totalDuration, globalStart, globalEnd };
+              }, [schedule]);
 
-                <div className={`w-full max-w-md p-8 rounded-xl shadow-lg border transition-colors duration-300 ${isDarkMode ? 'bg-[#1C3041] border-[#2A455C]' : 'bg-white border-[#E3DBD0]'}`}>
-                  <div className="flex flex-col items-center mb-8">
-                    <div className="flex items-center justify-center transition-colors mb-6">
-                      <img 
-                        src={isDarkMode ? "https://i.postimg.cc/KzxLjyzM/LOGOTIPO-ITEX-ACUSTICA-NOVO-1.png" : "https://i.postimg.cc/sf6tyj6N/LOGOTIPO-ITEX-ACUSTICA-NOVO.png"} 
-                        alt="Logotipo ITEX" 
-                        className="h-16 w-auto object-contain drop-shadow-sm"
-                      />
+              const payments = useMemo(() => {
+                const total = projectMetrics.totalCost;
+                return paymentPercentages.map(p => ({
+                  ...p,
+                  value: total * (p.percentage / 100)
+                }));
+              }, [projectMetrics.totalCost, paymentPercentages]);
+
+              const totalPercentage = useMemo(() => {
+                return paymentPercentages.reduce((acc, curr) => acc + Number(curr.percentage), 0);
+              }, [paymentPercentages]);
+
+              const deviations = useMemo(() => {
+                const costDeviation = projectMetrics.totalCost - BASELINE_COST;
+                const durationDeviation = projectMetrics.totalDuration - BASELINE_DURATION;
+                const percentageDeviation = totalPercentage - BASELINE_PERCENTAGE;
+
+                return {
+                  cost: {
+                    value: costDeviation,
+                    isOverrun: costDeviation > 0,
+                    isSavings: costDeviation < 0,
+                    percentage: ((costDeviation / BASELINE_COST) * 100).toFixed(2)
+                  },
+                  duration: {
+                    value: durationDeviation,
+                    isOverrun: durationDeviation > 0,
+                    isSavings: durationDeviation < 0
+                  },
+                  percentage: {
+                    value: percentageDeviation,
+                    isOverrun: percentageDeviation > 0,
+                    isSavings: percentageDeviation < 0
+                  }
+                };
+              }, [projectMetrics, totalPercentage]);
+
+              const handleTaskChange = (index, field, value) => {
+                const newTasks = [...tasks];
+                newTasks[index] = { ...newTasks[index], [field]: field === 'start' ? value : Number(value) };
+                setTasks(newTasks);
+              };
+
+              const handlePaymentChange = (index, value) => {
+                const newPayments = [...paymentPercentages];
+                newPayments[index] = { ...newPayments[index], percentage: Number(value) };
+                setPaymentPercentages(newPayments);
+              };
+
+              const pieChartSlices = useMemo(() => {
+                let cumulativeValue = 0;
+                const totalChartValue = projectMetrics.totalCost;
+                return tasks.map((task, index) => {
+                  const value = Number(task.cost);
+                  if (value === 0) return null;
+                  
+                  const path = generatePieSlice(value, totalChartValue, cumulativeValue);
+                  cumulativeValue += value;
+                  
+                  return {
+                    id: task.id,
+                    path,
+                    color: CHART_COLORS[index % CHART_COLORS.length],
+                    name: task.name
+                  };
+                }).filter(Boolean);
+              }, [tasks, projectMetrics.totalCost]);
+
+
+              // ==========================================
+              // RENDERIZAÇÃO: GATEWAY DE AUTENTICAÇÃO
+              // ==========================================
+              if (!isAuthenticated) {
+                return (
+                  <div className={`min-h-screen flex items-center justify-center p-4 font-sans transition-colors duration-300 ${isDarkMode ? 'bg-[#121F28] text-[#E3DBD0]' : 'bg-[#E3DBD0]/20 text-[#223B4D]'}`}>
+                    <button 
+                      onClick={() => setIsDarkMode(!isDarkMode)}
+                      className={`absolute top-6 right-6 p-2 rounded-lg border transition-colors flex items-center justify-center ${isDarkMode ? 'bg-[#1C3041] border-[#B07905]/50 text-[#FFD000] hover:bg-[#2A455C]' : 'bg-white border-[#B07905]/30 text-[#B07905] hover:bg-[#E3DBD0]/50'}`}
+                    >
+                      {isDarkMode ? <IconSun className="w-5 h-5" /> : <IconMoon className="w-5 h-5" />}
+                    </button>
+
+                    <div className={`w-full max-w-md p-8 rounded-xl shadow-lg border transition-colors duration-300 ${isDarkMode ? 'bg-[#1C3041] border-[#2A455C]' : 'bg-white border-[#E3DBD0]'}`}>
+                      <div className="flex flex-col items-center mb-8">
+                        <div className="flex items-center justify-center transition-colors mb-6">
+                          <img 
+                            src={isDarkMode ? "https://i.postimg.cc/KzxLjyzM/LOGOTIPO-ITEX-ACUSTICA-NOVO-1.png" : "https://i.postimg.cc/sf6tyj6N/LOGOTIPO-ITEX-ACUSTICA-NOVO.png"} 
+                            alt="Logotipo ITEX" 
+                            className="h-16 w-auto object-contain drop-shadow-sm"
+                          />
+                        </div>
+                        <h1 className={`text-2xl font-bold tracking-tight text-center ${isDarkMode ? 'text-[#E3DBD0]' : 'text-[#223B4D]'}`}>
+                          Acesso Corporativo
+                        </h1>
+                        <p className={`text-sm mt-1 text-center ${isDarkMode ? 'text-[#94A6B5]' : 'text-[#223B4D]/70'}`}>
+                          Painel de Gestão Analítica - RSVP Fitness
+                        </p>
+                      </div>
+
+                      <form onSubmit={handleLogin} className="space-y-5">
+                        <div>
+                          <label className={`block text-xs font-semibold uppercase tracking-wider mb-1.5 ${isDarkMode ? 'text-[#FFD000]' : 'text-[#223B4D]'}`}>
+                            Credencial de Usuário
+                          </label>
+                          <div className="relative">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                              <IconUser className={`h-4 w-4 ${isDarkMode ? 'text-[#94A6B5]' : 'text-[#223B4D]/50'}`} />
+                            </div>
+                            <input
+                              type="text"
+                              required
+                              value={username}
+                              onChange={(e) => setUsername(e.target.value)}
+                              className={`block w-full pl-10 pr-3 py-2 border rounded-md text-sm focus:ring-2 focus:outline-none transition-colors ${isDarkMode ? 'bg-[#121F28] border-[#2A455C] text-[#E3DBD0] focus:ring-[#FFD000] focus:border-[#FFD000]' : 'bg-white border-[#E3DBD0] text-[#223B4D] focus:ring-[#B07905] focus:border-[#B07905]'}`}
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className={`block text-xs font-semibold uppercase tracking-wider mb-1.5 ${isDarkMode ? 'text-[#FFD000]' : 'text-[#223B4D]'}`}>
+                            Chave de Acesso
+                          </label>
+                          <div className="relative">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                              <IconLock className={`h-4 w-4 ${isDarkMode ? 'text-[#94A6B5]' : 'text-[#223B4D]/50'}`} />
+                            </div>
+                            <input
+                              type={showPassword ? "text" : "password"}
+                              required
+                              value={password}
+                              onChange={(e) => setPassword(e.target.value)}
+                              className={`block w-full pl-10 pr-10 py-2 border rounded-md text-sm focus:ring-2 focus:outline-none transition-colors ${isDarkMode ? 'bg-[#121F28] border-[#2A455C] text-[#E3DBD0] focus:ring-[#FFD000] focus:border-[#FFD000]' : 'bg-white border-[#E3DBD0] text-[#223B4D] focus:ring-[#B07905] focus:border-[#B07905]'}`}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                              title={showPassword ? "Ocultar senha" : "Exibir senha"}
+                            >
+                              {showPassword ? (
+                                  <IconEyeOff className={`h-4 w-4 transition-colors ${isDarkMode ? 'text-[#94A6B5] hover:text-[#E3DBD0]' : 'text-[#223B4D]/50 hover:text-[#223B4D]'}`} />
+                              ) : (
+                                  <IconEye className={`h-4 w-4 transition-colors ${isDarkMode ? 'text-[#94A6B5] hover:text-[#E3DBD0]' : 'text-[#223B4D]/50 hover:text-[#223B4D]'}`} />
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                        {loginError && (
+                          <div className="flex items-center text-xs p-3 rounded-lg border bg-red-50/10 text-red-500 border-red-200">
+                            <IconAlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
+                            <span>Credenciais inválidas. Verifique os dados fornecidos.</span>
+                          </div>
+                        )}
+                        <button type="submit" className={`w-full py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium transition-colors ${isDarkMode ? 'bg-[#FFD000] text-[#1C3041] hover:bg-[#D69E2E]' : 'bg-[#223B4D] text-white hover:bg-[#1A202C]'}`}>
+                          Autenticar Sessão
+                        </button>
+                      </form>
                     </div>
-                    <h1 className={`text-2xl font-bold tracking-tight text-center ${isDarkMode ? 'text-[#E3DBD0]' : 'text-[#223B4D]'}`}>
-                      Acesso Corporativo
-                    </h1>
-                    <p className={`text-sm mt-1 text-center ${isDarkMode ? 'text-[#94A6B5]' : 'text-[#223B4D]/70'}`}>
-                      Painel de Gestão Analítica - RSVP Fitness
-                    </p>
                   </div>
+                );
+              }
 
-                  <form onSubmit={handleLogin} className="space-y-5">
-                    <div>
-                      <label className={`block text-xs font-semibold uppercase tracking-wider mb-1.5 ${isDarkMode ? 'text-[#FFD000]' : 'text-[#223B4D]'}`}>
-                        Credencial de Usuário
-                      </label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <IconUser className={`h-4 w-4 ${isDarkMode ? 'text-[#94A6B5]' : 'text-[#223B4D]/50'}`} />
+              // ==========================================
+              // RENDERIZAÇÃO: PAINEL PRINCIPAL
+              // ==========================================
+              const globalTotalDays = diffDays(projectMetrics.globalStart, projectMetrics.globalEnd) || 1;
+              const sumTaskDurations = tasks.reduce((acc, t) => acc + Number(t.duration), 0);
+              const maxTaskDuration = Math.max(...tasks.map(t => Number(t.duration))) || 1;
+
+              return (
+                <div className={`min-h-screen p-4 font-sans transition-colors duration-300 ${isDarkMode ? 'bg-[#121F28] text-[#E3DBD0]' : 'bg-[#E3DBD0]/20 text-[#223B4D]'}`}>
+                  <div className="max-w-6xl mx-auto space-y-4">
+                    
+                    {/* Cabeçalho */}
+                    <div className={`p-4 rounded-xl shadow-sm border transition-colors duration-300 flex flex-col md:flex-row justify-between items-start md:items-center ${isDarkMode ? 'bg-[#1C3041] border-[#2A455C]' : 'bg-white border-[#E3DBD0]'}`}>
+                      <div className="flex flex-col md:flex-row items-start md:items-center space-y-3 md:space-y-0 md:space-x-5">
+                        <div className="flex items-center justify-center transition-colors">
+                          <img 
+                            src={isDarkMode ? "https://i.postimg.cc/KzxLjyzM/LOGOTIPO-ITEX-ACUSTICA-NOVO-1.png" : "https://i.postimg.cc/sf6tyj6N/LOGOTIPO-ITEX-ACUSTICA-NOVO.png"} 
+                            alt="Logotipo ITEX" 
+                            className="h-10 w-auto object-contain drop-shadow-sm"
+                          />
                         </div>
-                        <input
-                          type="text"
-                          required
-                          value={username}
-                          onChange={(e) => setUsername(e.target.value)}
-                          className={`block w-full pl-10 pr-3 py-2 border rounded-md text-sm focus:ring-2 focus:outline-none transition-colors ${isDarkMode ? 'bg-[#121F28] border-[#2A455C] text-[#E3DBD0] focus:ring-[#FFD000] focus:border-[#FFD000]' : 'bg-white border-[#E3DBD0] text-[#223B4D] focus:ring-[#B07905] focus:border-[#B07905]'}`}
-                          placeholder="Insira seu usuário"
-                        />
+                        <div className={`hidden md:block h-10 w-px ${isDarkMode ? 'bg-[#2A455C]' : 'bg-[#E3DBD0]'}`}></div>
+                        <div>
+                          <h1 className={`text-xl font-bold tracking-tight ${isDarkMode ? 'text-[#E3DBD0]' : 'text-[#223B4D]'}`}>Painel de Gestão de Obras</h1>
+                          <p className={`text-xs mt-0.5 ${isDarkMode ? 'text-[#94A6B5]' : 'text-[#223B4D]/70'}`}>Projeto: RSVP Fitness | Contratada: ITEX BRASIL LTDA</p>
+                          {/* INFORMAÇÃO DE PERSISTÊNCIA (ÚLTIMA ALTERAÇÃO) */}
+                          <div className={`flex items-center text-[10px] mt-1 font-semibold ${isSaving ? 'text-[#B07905]' : (isDarkMode ? 'text-emerald-400' : 'text-emerald-600')}`}>
+                             {isSaving ? (
+                                <><IconSave className="w-3 h-3 mr-1 animate-pulse" /> Sincronizando dados...</>
+                             ) : lastModified ? (
+                                <><IconCheckCircle2 className="w-3 h-3 mr-1" /> Atualizado em {new Date(lastModified).toLocaleString('pt-BR')}</>
+                             ) : (
+                                <><IconAlertCircle className="w-3 h-3 mr-1" /> Estado local</>
+                             )}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-4 md:mt-0 flex items-center space-x-3">
+                        <button onClick={() => setIsDarkMode(!isDarkMode)} className={`p-2 rounded-lg border transition-colors flex items-center justify-center ${isDarkMode ? 'bg-[#121F28] border-[#B07905]/50 text-[#FFD000] hover:bg-[#2A455C]' : 'bg-white border-[#B07905]/30 text-[#B07905] hover:bg-[#E3DBD0]/50'}`}>
+                          {isDarkMode ? <IconSun className="w-4 h-4" /> : <IconMoon className="w-4 h-4" />}
+                        </button>
+                        <button onClick={handleLogout} className={`p-2 rounded-lg border transition-colors flex items-center justify-center ${isDarkMode ? 'bg-[#121F28] border-red-900/50 text-red-400 hover:bg-red-900/30' : 'bg-white border-red-200 text-red-500 hover:bg-red-50'}`}>
+                          <IconLogOut className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
 
-                    <div>
-                      <label className={`block text-xs font-semibold uppercase tracking-wider mb-1.5 ${isDarkMode ? 'text-[#FFD000]' : 'text-[#223B4D]'}`}>
-                        Chave de Acesso
-                      </label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <IconLock className={`h-4 w-4 ${isDarkMode ? 'text-[#94A6B5]' : 'text-[#223B4D]/50'}`} />
+                    {/* KPIs Executivos Globais */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className={`p-3 rounded-lg border flex items-center transition-colors ${isDarkMode ? 'bg-[#1C3041] border-[#2A455C]' : 'bg-white border-[#E3DBD0]'}`}>
+                        <div className={`p-2 rounded-full shadow-sm mr-3 border transition-colors ${isDarkMode ? 'bg-[#121F28] border-[#2A455C]' : 'bg-[#E3DBD0]/30 border-[#E3DBD0]'}`}>
+                          <IconDollarSign className="w-5 h-5 text-[#B07905]" />
                         </div>
-                        <input
-                          type="password"
-                          required
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          className={`block w-full pl-10 pr-3 py-2 border rounded-md text-sm focus:ring-2 focus:outline-none transition-colors ${isDarkMode ? 'bg-[#121F28] border-[#2A455C] text-[#E3DBD0] focus:ring-[#FFD000] focus:border-[#FFD000]' : 'bg-white border-[#E3DBD0] text-[#223B4D] focus:ring-[#B07905] focus:border-[#B07905]'}`}
-                          placeholder="Insira sua senha"
-                        />
+                        <div>
+                          <p className={`text-[10px] font-medium uppercase ${isDarkMode ? 'text-[#94A6B5]' : 'text-[#223B4D]/70'}`}>CAPEX Total Previsto</p>
+                          <p className={`text-lg font-bold ${projectMetrics.totalCost === BASELINE_COST ? (isDarkMode ? 'text-[#E3DBD0]' : 'text-[#223B4D]') : 'text-[#B07905]'}`}>
+                            {formatCurrency(projectMetrics.totalCost)}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className={`p-3 rounded-lg border flex items-center transition-colors ${isDarkMode ? 'bg-[#1C3041] border-[#2A455C]' : 'bg-white border-[#E3DBD0]'}`}>
+                        <div className={`p-2 rounded-full shadow-sm mr-3 border transition-colors ${isDarkMode ? 'bg-[#121F28] border-[#2A455C]' : 'bg-[#E3DBD0]/30 border-[#E3DBD0]'}`}>
+                          <IconClock className="w-5 h-5 text-[#B07905]" />
+                        </div>
+                        <div>
+                          <p className={`text-[10px] font-medium uppercase ${isDarkMode ? 'text-[#94A6B5]' : 'text-[#223B4D]/70'}`}>Esforço / Duração Global</p>
+                          <p className={`text-lg font-bold ${projectMetrics.totalDuration <= BASELINE_DURATION ? (isDarkMode ? 'text-[#E3DBD0]' : 'text-[#223B4D]') : 'text-[#B07905]'}`}>
+                            {projectMetrics.totalDuration} Dias Úteis
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className={`p-3 rounded-lg border flex items-center transition-colors ${isDarkMode ? 'bg-[#1C3041] border-[#2A455C]' : 'bg-white border-[#E3DBD0]'}`}>
+                        <div className={`p-2 rounded-full shadow-sm mr-3 border transition-colors ${isDarkMode ? 'bg-[#121F28] border-[#2A455C]' : 'bg-[#E3DBD0]/30 border-[#E3DBD0]'}`}>
+                          <IconCheckCircle2 className="w-5 h-5 text-[#B07905]" />
+                        </div>
+                        <div>
+                          <p className={`text-[10px] font-medium uppercase ${isDarkMode ? 'text-[#94A6B5]' : 'text-[#223B4D]/70'}`}>Término Consolidado</p>
+                          <p className={`text-lg font-bold ${isDarkMode ? 'text-[#E3DBD0]' : 'text-[#223B4D]'}`}>
+                            {formatDate(projectMetrics.globalEnd)}
+                          </p>
+                        </div>
                       </div>
                     </div>
 
-                    {loginError && (
-                      <div className="flex items-center text-xs p-3 rounded-lg border bg-red-50/10 text-red-500 border-red-200 dark:border-red-900/50">
+                    {/* BLOCO DE ALERTA DE PRAZO */}
+                    {projectMetrics.totalDuration > BASELINE_DURATION && (
+                      <div className={`p-3 rounded-lg border flex items-center text-xs font-semibold ${isDarkMode ? 'bg-red-900/20 border-red-900/50 text-red-400' : 'bg-red-50 border-red-200 text-red-700'}`}>
                         <IconAlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
-                        <span>Credenciais inválidas. Verifique os dados fornecidos.</span>
+                        <span>Alerta de Compliance: O cronograma projetado ({projectMetrics.totalDuration} dias úteis) excede o limite de {BASELINE_DURATION} dias úteis estabelecido em contrato (Cláusula 8.1).</span>
+                      </div>
+                    )}
+                    {projectMetrics.totalDuration < BASELINE_DURATION && (
+                      <div className={`p-3 rounded-lg border flex items-center text-xs font-semibold ${isDarkMode ? 'bg-[#B07905]/20 border-[#B07905]/50 text-[#FFD000]' : 'bg-[#FFD000]/20 border-[#FFD000]/50 text-[#B07905]'}`}>
+                        <IconAlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
+                        <span>Aviso Operacional: O cronograma projetado ({projectMetrics.totalDuration} dias úteis) indica conclusão antecipada frente ao limite de {BASELINE_DURATION} dias úteis estabelecido em contrato (Cláusula 8.1).</span>
                       </div>
                     )}
 
-                    <button
-                      type="submit"
-                      className={`w-full py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium transition-colors ${isDarkMode ? 'bg-[#FFD000] text-[#1C3041] hover:bg-[#D69E2E]' : 'bg-[#223B4D] text-white hover:bg-[#1A202C]'}`}
-                    >
-                      Autenticar Sessão
-                    </button>
-                  </form>
-                  
-                  <div className={`mt-8 pt-4 border-t text-center text-xs ${isDarkMode ? 'border-[#2A455C] text-[#94A6B5]' : 'border-[#E3DBD0] text-[#223B4D]/50'}`}>
-                    &copy; 2026 ITEX BRASIL LTDA. Ambiente restrito.
-                  </div>
-                </div>
-              </div>
-            );
-          }
-
-
-          // ==========================================
-          // RENDERIZAÇÃO DO PAINEL PRINCIPAL (DASHBOARD)
-          // ==========================================
-          return (
-            <div className={`min-h-screen p-4 font-sans transition-colors duration-300 ${isDarkMode ? 'bg-[#121F28] text-[#E3DBD0]' : 'bg-[#E3DBD0]/20 text-[#223B4D]'}`}>
-              <div className="max-w-6xl mx-auto space-y-4">
-                
-                {/* Cabeçalho do Painel */}
-                <div className={`p-4 rounded-xl shadow-sm border transition-colors duration-300 ${isDarkMode ? 'bg-[#1C3041] border-[#2A455C]' : 'bg-white border-[#E3DBD0]'}`}>
-                  <div className={`flex flex-col md:flex-row justify-between items-start md:items-center mb-4 pb-3 border-b ${isDarkMode ? 'border-[#2A455C]' : 'border-[#E3DBD0]'}`}>
-                    <div className="flex flex-col md:flex-row items-start md:items-center space-y-3 md:space-y-0 md:space-x-5">
-                      <div className="flex items-center justify-center transition-colors">
-                        <img 
-                          src={isDarkMode ? "https://i.postimg.cc/KzxLjyzM/LOGOTIPO-ITEX-ACUSTICA-NOVO-1.png" : "https://i.postimg.cc/sf6tyj6N/LOGOTIPO-ITEX-ACUSTICA-NOVO.png"} 
-                          alt="Logotipo ITEX" 
-                          className="h-10 w-auto object-contain drop-shadow-sm"
-                        />
-                      </div>
-                      <div className={`hidden md:block h-8 w-px ${isDarkMode ? 'bg-[#2A455C]' : 'bg-[#E3DBD0]'}`}></div>
-                      <div>
-                        <h1 className={`text-xl font-bold tracking-tight ${isDarkMode ? 'text-[#E3DBD0]' : 'text-[#223B4D]'}`}>Painel de Gestão de Obras</h1>
-                        <p className={`text-xs mt-0.5 ${isDarkMode ? 'text-[#94A6B5]' : 'text-[#223B4D]/70'}`}>Projeto: RSVP Fitness | Contratada: ITEX BRASIL LTDA</p>
-                      </div>
-                    </div>
-                    
-                    <div className="mt-4 md:mt-0 flex items-center space-x-3">
+                    {/* Menu de Navegação / Tabs */}
+                    <div className={`flex border-b transition-colors ${isDarkMode ? 'border-[#2A455C]' : 'border-[#E3DBD0]'}`}>
                       <button 
-                        onClick={() => setIsDarkMode(!isDarkMode)}
-                        className={`p-2 rounded-lg border transition-colors flex items-center justify-center ${isDarkMode ? 'bg-[#121F28] border-[#B07905]/50 text-[#FFD000] hover:bg-[#2A455C]' : 'bg-white border-[#B07905]/30 text-[#B07905] hover:bg-[#E3DBD0]/50'}`}
-                        title="Alternar Modo de Visualização"
+                        onClick={() => setActiveTab('schedule')}
+                        className={`flex items-center px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${activeTab === 'schedule' ? (isDarkMode ? 'border-[#FFD000] text-[#FFD000]' : 'border-[#B07905] text-[#B07905]') : (isDarkMode ? 'border-transparent text-[#94A6B5] hover:text-[#E3DBD0]' : 'border-transparent text-[#223B4D]/60 hover:text-[#223B4D]')}`}
                       >
-                        {isDarkMode ? <IconSun className="w-4 h-4" /> : <IconMoon className="w-4 h-4" />}
+                        <IconBarChart className="w-4 h-4 mr-2" />
+                        Visão de Cronograma (Gantt)
                       </button>
-
-                      <div className={`flex items-center px-3 py-2 rounded-lg border shadow-inner transition-colors ${isDarkMode ? 'bg-[#121F28] border-[#B07905]/50' : 'bg-[#E3DBD0]/30 border-[#E3DBD0]'}`}>
-                        <IconCalendar className={`w-4 h-4 mr-2 ${isDarkMode ? 'text-[#FFD000]' : 'text-[#B07905]'}`} />
-                        <div className="flex flex-col">
-                          <label className={`text-[10px] font-semibold uppercase tracking-wider mb-0.5 ${isDarkMode ? 'text-[#FFD000]' : 'text-[#223B4D]'}`}>Início do Projeto</label>
-                          <input 
-                            type="date" 
-                            value={projectStartDate}
-                            onChange={(e) => setProjectStartDate(e.target.value)}
-                            className={`bg-transparent border rounded px-1.5 py-0.5 text-xs font-medium focus:ring-2 focus:outline-none cursor-pointer transition-colors ${isDarkMode ? 'border-[#2A455C] text-[#E3DBD0] focus:ring-[#FFD000] focus:border-[#FFD000]' : 'border-[#B07905]/30 text-[#223B4D] focus:ring-[#B07905]'}`}
-                            style={isDarkMode ? { colorScheme: 'dark' } : {}}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Botão de Logoff */}
                       <button 
-                        onClick={handleLogout}
-                        className={`p-2 rounded-lg border transition-colors flex items-center justify-center ${isDarkMode ? 'bg-[#121F28] border-red-900/50 text-red-400 hover:bg-red-900/30' : 'bg-white border-red-200 text-red-500 hover:bg-red-50'}`}
-                        title="Encerrar Sessão"
+                        onClick={() => setActiveTab('financial')}
+                        className={`flex items-center px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${activeTab === 'financial' ? (isDarkMode ? 'border-[#FFD000] text-[#FFD000]' : 'border-[#B07905] text-[#B07905]') : (isDarkMode ? 'border-transparent text-[#94A6B5] hover:text-[#E3DBD0]' : 'border-transparent text-[#223B4D]/60 hover:text-[#223B4D]')}`}
                       >
-                        <IconLogOut className="w-4 h-4" />
+                        <IconPieChart className="w-4 h-4 mr-2" />
+                        Visão Financeira e Custos
                       </button>
                     </div>
-                  </div>
 
-                  {/* KPIs Executivos */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div className={`p-3 rounded-lg border flex items-center transition-colors ${isDarkMode ? 'bg-[#121F28]/50 border-[#2A455C]' : 'bg-[#E3DBD0]/10 border-[#E3DBD0]'}`}>
-                      <div className={`p-2 rounded-full shadow-sm mr-3 border transition-colors ${isDarkMode ? 'bg-[#1C3041] border-[#2A455C]' : 'bg-white border-[#E3DBD0]'}`}>
-                        <IconDollarSign className="w-5 h-5 text-[#B07905]" />
-                      </div>
-                      <div>
-                        <p className={`text-[10px] font-medium uppercase ${isDarkMode ? 'text-[#94A6B5]' : 'text-[#223B4D]/70'}`}>Investimento Total (Simulado)</p>
-                        <p className={`text-lg font-bold ${projectMetrics.totalCost === BASELINE_COST ? (isDarkMode ? 'text-[#E3DBD0]' : 'text-[#223B4D]') : 'text-[#B07905]'}`}>
-                          {formatCurrency(projectMetrics.totalCost)}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className={`p-3 rounded-lg border flex items-center transition-colors ${isDarkMode ? 'bg-[#121F28]/50 border-[#2A455C]' : 'bg-[#E3DBD0]/10 border-[#E3DBD0]'}`}>
-                      <div className={`p-2 rounded-full shadow-sm mr-3 border transition-colors ${isDarkMode ? 'bg-[#1C3041] border-[#2A455C]' : 'bg-white border-[#E3DBD0]'}`}>
-                        <IconClock className="w-5 h-5 text-[#B07905]" />
-                      </div>
-                      <div>
-                        <p className={`text-[10px] font-medium uppercase ${isDarkMode ? 'text-[#94A6B5]' : 'text-[#223B4D]/70'}`}>Prazo de Execução (Simulado)</p>
-                        <p className={`text-lg font-bold ${projectMetrics.totalDuration <= BASELINE_DURATION ? (isDarkMode ? 'text-[#E3DBD0]' : 'text-[#223B4D]') : 'text-[#B07905]'}`}>
-                          {projectMetrics.totalDuration} Dias Úteis
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className={`p-3 rounded-lg border flex items-center transition-colors ${isDarkMode ? 'bg-[#121F28]/50 border-[#2A455C]' : 'bg-[#E3DBD0]/10 border-[#E3DBD0]'}`}>
-                      <div className={`p-2 rounded-full shadow-sm mr-3 border transition-colors ${isDarkMode ? 'bg-[#1C3041] border-[#2A455C]' : 'bg-white border-[#E3DBD0]'}`}>
-                        <IconCheckCircle2 className="w-5 h-5 text-[#B07905]" />
-                      </div>
-                      <div>
-                        <p className={`text-[10px] font-medium uppercase ${isDarkMode ? 'text-[#94A6B5]' : 'text-[#223B4D]/70'}`}>Previsão de Término</p>
-                        <p className={`text-lg font-bold ${isDarkMode ? 'text-[#E3DBD0]' : 'text-[#223B4D]'}`}>
-                          {formatDate(projectMetrics.projectEndDate)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Módulo: Auditoria de Desvios */}
-                <div className={`rounded-xl shadow-sm border overflow-hidden transition-colors ${isDarkMode ? 'bg-[#1C3041] border-[#2A455C]' : 'bg-white border-[#E3DBD0]'}`}>
-                  <div className={`px-4 py-3 border-b flex items-center transition-colors ${isDarkMode ? 'border-[#2A455C] bg-[#121F28]/80' : 'border-[#E3DBD0] bg-[#E3DBD0]/20'}`}>
-                    <IconActivity className={`w-4 h-4 mr-2 ${isDarkMode ? 'text-[#FFD000]' : 'text-[#B07905]'}`} />
-                    <h2 className={`text-base font-semibold ${isDarkMode ? 'text-[#E3DBD0]' : 'text-[#223B4D]'}`}>Auditoria de Desvios (Baseline vs. Simulado)</h2>
-                  </div>
-                  <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-                    
-                    {/* Desvio Financeiro */}
-                    <div className={`p-3 rounded-lg border transition-colors ${
-                      deviations.cost.value === 0 
-                        ? (isDarkMode ? 'bg-[#121F28] border-[#2A455C]' : 'bg-[#E3DBD0]/10 border-[#E3DBD0]') 
-                        : deviations.cost.isOverrun 
-                          ? 'bg-red-50/10 border-red-200' 
-                          : 'bg-emerald-50/10 border-emerald-200'
-                    }`}>
-                      <div className="flex justify-between items-center mb-1.5">
-                        <span className={`text-[10px] font-bold uppercase ${isDarkMode ? 'text-[#94A6B5]' : 'text-[#223B4D]/70'}`}>Δ Financeiro (CAPEX)</span>
-                        {deviations.cost.isOverrun && <IconTrendingUp className="w-3 h-3 text-red-500" />}
-                        {deviations.cost.isSavings && <IconTrendingDown className="w-3 h-3 text-emerald-500" />}
-                        {deviations.cost.value === 0 && <IconScale className={`w-3 h-3 ${isDarkMode ? 'text-[#FFD000]' : 'text-[#B07905]'}`} />}
-                      </div>
-                      <p className={`text-base font-bold ${
-                        deviations.cost.value === 0 
-                          ? (isDarkMode ? 'text-[#E3DBD0]' : 'text-[#223B4D]') 
-                          : deviations.cost.isOverrun ? 'text-red-600' : 'text-emerald-600'
-                      }`}>
-                        {deviations.cost.value > 0 ? '+' : ''}{formatCurrency(deviations.cost.value)}
-                      </p>
-                      <p className={`text-[10px] mt-0.5 ${isDarkMode ? 'text-[#94A6B5]' : 'text-[#223B4D]/70'}`}>
-                        {deviations.cost.value === 0 ? 'Alinhado ao contrato' : `Variação de ${deviations.cost.percentage}%`}
-                      </p>
-                    </div>
-
-                    {/* Desvio de Prazo */}
-                    <div className={`p-3 rounded-lg border transition-colors ${
-                      deviations.duration.value === 0 
-                        ? (isDarkMode ? 'bg-[#121F28] border-[#2A455C]' : 'bg-[#E3DBD0]/10 border-[#E3DBD0]') 
-                        : deviations.duration.isOverrun 
-                          ? 'bg-red-50/10 border-red-200' 
-                          : 'bg-emerald-50/10 border-emerald-200'
-                    }`}>
-                      <div className="flex justify-between items-center mb-1.5">
-                        <span className={`text-[10px] font-bold uppercase ${isDarkMode ? 'text-[#94A6B5]' : 'text-[#223B4D]/70'}`}>Δ Cronograma (Dias)</span>
-                        {deviations.duration.isOverrun && <IconTrendingUp className="w-3 h-3 text-red-500" />}
-                        {deviations.duration.isSavings && <IconTrendingDown className="w-3 h-3 text-emerald-500" />}
-                        {deviations.duration.value === 0 && <IconScale className={`w-3 h-3 ${isDarkMode ? 'text-[#FFD000]' : 'text-[#B07905]'}`} />}
-                      </div>
-                      <p className={`text-base font-bold ${
-                        deviations.duration.value === 0 
-                          ? (isDarkMode ? 'text-[#E3DBD0]' : 'text-[#223B4D]') 
-                          : deviations.duration.isOverrun ? 'text-red-600' : 'text-emerald-600'
-                      }`}>
-                        {deviations.duration.value > 0 ? '+' : ''}{deviations.duration.value} Dias Úteis
-                      </p>
-                      <p className={`text-[10px] mt-0.5 ${isDarkMode ? 'text-[#94A6B5]' : 'text-[#223B4D]/70'}`}>
-                        {deviations.duration.value === 0 ? `Limite de ${BASELINE_DURATION} dias` : `Ref. limite de ${BASELINE_DURATION} dias`}
-                      </p>
-                    </div>
-
-                    {/* Desvio de Fluxo */}
-                    <div className={`p-3 rounded-lg border transition-colors ${
-                      deviations.percentage.value === 0 
-                        ? (isDarkMode ? 'bg-[#121F28] border-[#2A455C]' : 'bg-[#E3DBD0]/10 border-[#E3DBD0]') 
-                        : 'bg-red-50/10 border-red-200'
-                    }`}>
-                      <div className="flex justify-between items-center mb-1.5">
-                        <span className={`text-[10px] font-bold uppercase ${isDarkMode ? 'text-[#94A6B5]' : 'text-[#223B4D]/70'}`}>Δ Conformidade de Fluxo</span>
-                        {deviations.percentage.value !== 0 ? <IconAlertCircle className="w-3 h-3 text-red-500" /> : <IconCheckCircle2 className="w-3 h-3 text-emerald-500" />}
-                      </div>
-                      <p className={`text-base font-bold ${
-                        deviations.percentage.value === 0 
-                          ? (isDarkMode ? 'text-[#E3DBD0]' : 'text-[#223B4D]') 
-                          : 'text-red-600'
-                      }`}>
-                        {deviations.percentage.value > 0 ? '+' : ''}{deviations.percentage.value}% (Total: {totalPercentage}%)
-                      </p>
-                      <p className={`text-[10px] mt-0.5 ${isDarkMode ? 'text-[#94A6B5]' : 'text-[#223B4D]/70'}`}>
-                        {deviations.percentage.value === 0 ? 'Faturamento integro (100%)' : 'A soma deve resultar em 100%'}
-                      </p>
-                    </div>
-
-                  </div>
-                </div>
-
-                {/* Tabela Interativa de Cronograma e Gráfico */}
-                <div className={`rounded-xl shadow-sm border overflow-hidden transition-colors ${isDarkMode ? 'bg-[#1C3041] border-[#2A455C]' : 'bg-white border-[#E3DBD0]'}`}>
-                  <div className={`px-4 py-3 border-b flex flex-col sm:flex-row sm:justify-between sm:items-center transition-colors ${isDarkMode ? 'border-[#2A455C] bg-[#121F28]/80' : 'border-[#E3DBD0] bg-[#E3DBD0]/20'}`}>
-                    <h2 className={`text-base font-semibold ${isDarkMode ? 'text-[#E3DBD0]' : 'text-[#223B4D]'}`}>Modelagem de Fases e Distribuição Analítica</h2>
-                    <span className={`text-[10px] mt-1 sm:mt-0 font-medium ${isDarkMode ? 'text-[#94A6B5]' : 'text-[#223B4D]/70'}`}>Os campos em borda atualizam os dados em tempo real</span>
-                  </div>
-                  
-                  <div className="flex flex-col lg:flex-row">
-                    {/* Tabela */}
-                    <div className={`w-full lg:w-2/3 overflow-x-auto border-b lg:border-b-0 lg:border-r ${isDarkMode ? 'border-[#2A455C]' : 'border-[#E3DBD0]'}`}>
-                      <table className="w-full text-xs text-left">
-                        <thead className={`uppercase text-[10px] font-semibold transition-colors ${isDarkMode ? 'bg-[#121F28] text-[#FFD000]' : 'bg-[#223B4D] text-[#E3DBD0]'}`}>
-                          <tr>
-                            <th className="px-4 py-2 w-8">#</th>
-                            <th className="px-4 py-2">Etapa Contratual</th>
-                            <th className="px-4 py-2 text-center">Dias</th>
-                            <th className="px-4 py-2 text-center">Início</th>
-                            <th className="px-4 py-2 text-center">Término</th>
-                            <th className="px-4 py-2 text-right">Custo (R$)</th>
-                          </tr>
-                        </thead>
-                        <tbody className={`divide-y transition-colors ${isDarkMode ? 'divide-[#2A455C]' : 'divide-[#E3DBD0]/50'}`}>
-                          {schedule.map((task, index) => (
-                            <tr key={task.id} className={`transition-colors group ${isDarkMode ? 'hover:bg-[#2A455C]/30' : 'hover:bg-[#E3DBD0]/10'}`}>
-                              <td className={`px-4 py-2 font-medium ${isDarkMode ? 'text-[#94A6B5]' : 'text-[#223B4D]/50'}`}>{index + 1}</td>
-                              <td className={`px-4 py-2 font-medium ${isDarkMode ? 'text-[#E3DBD0]' : 'text-[#223B4D]'}`}>
-                                <div className="flex items-center">
-                                  <span 
-                                    className="w-2.5 h-2.5 rounded-full mr-2 flex-shrink-0 shadow-sm" 
-                                    style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}
-                                  ></span>
-                                  <span className="truncate max-w-[180px]" title={task.name}>{task.name}</span>
-                                </div>
-                              </td>
-                              <td className="px-4 py-2">
-                                <div className="flex justify-center">
-                                  <input 
-                                    type="number" 
-                                    min="0"
-                                    className={`w-16 text-center border rounded py-1 px-1.5 focus:ring-1 transition-all outline-none ${isDarkMode ? 'bg-[#121F28] border-[#2A455C] text-[#E3DBD0] focus:ring-[#FFD000] focus:border-[#FFD000] group-hover:border-[#FFD000]/50' : 'bg-white border-[#E3DBD0] text-[#223B4D] focus:ring-[#B07905] focus:border-[#B07905] group-hover:border-[#B07905]/50'}`}
-                                    value={task.duration}
-                                    onChange={(e) => handleTaskChange(index, 'duration', e.target.value)}
-                                  />
-                                </div>
-                              </td>
-                              <td className={`px-4 py-2 text-center transition-colors ${isDarkMode ? 'text-[#94A6B5] bg-[#121F28]/50' : 'text-[#223B4D]/80 bg-[#E3DBD0]/5'}`}>{formatDate(task.startDate)}</td>
-                              <td className={`px-4 py-2 text-center transition-colors ${isDarkMode ? 'text-[#94A6B5] bg-[#121F28]/50' : 'text-[#223B4D]/80 bg-[#E3DBD0]/5'}`}>{formatDate(task.endDate)}</td>
-                              <td className="px-4 py-2">
-                                <div className="flex justify-end">
-                                  <input 
-                                    type="number" 
-                                    min="0"
-                                    step="1000"
-                                    className={`w-24 text-right border rounded py-1 px-1.5 focus:ring-1 transition-all outline-none ${isDarkMode ? 'bg-[#121F28] border-[#2A455C] text-[#E3DBD0] focus:ring-[#FFD000] focus:border-[#FFD000] group-hover:border-[#FFD000]/50' : 'bg-white border-[#E3DBD0] text-[#223B4D] focus:ring-[#B07905] focus:border-[#B07905] group-hover:border-[#B07905]/50'}`}
-                                    value={task.cost}
-                                    onChange={(e) => handleTaskChange(index, 'cost', e.target.value)}
-                                  />
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    {/* Painel do Gráfico Analítico */}
-                    <div className="w-full lg:w-1/3 p-4 flex flex-col">
-                      <div className="flex justify-center mb-4 space-x-2">
-                        <button
-                          onClick={() => setChartMetric('cost')}
-                          className={`px-2 py-1 text-[10px] font-bold rounded flex items-center transition-colors ${chartMetric === 'cost' ? (isDarkMode ? 'bg-[#FFD000] text-[#1C3041]' : 'bg-[#B07905] text-white') : (isDarkMode ? 'bg-[#121F28] text-[#94A6B5] hover:bg-[#2A455C]' : 'bg-[#E3DBD0]/50 text-[#223B4D] hover:bg-[#E3DBD0]')}`}
-                        >
-                          <IconDollarSign className="w-3 h-3 mr-1" /> Valores
-                        </button>
-                        <button
-                          onClick={() => setChartMetric('duration')}
-                          className={`px-2 py-1 text-[10px] font-bold rounded flex items-center transition-colors ${chartMetric === 'duration' ? (isDarkMode ? 'bg-[#FFD000] text-[#1C3041]' : 'bg-[#B07905] text-white') : (isDarkMode ? 'bg-[#121F28] text-[#94A6B5] hover:bg-[#2A455C]' : 'bg-[#E3DBD0]/50 text-[#223B4D] hover:bg-[#E3DBD0]')}`}
-                        >
-                          <IconClock className="w-3 h-3 mr-1" /> Prazos
-                        </button>
-                      </div>
-
-                      <div className="relative w-36 h-36 mx-auto mb-4">
-                        <svg viewBox="-1.1 -1.1 2.2 2.2" className="transform -rotate-90 w-full h-full drop-shadow-md">
-                          {pieChartSlices.map((slice) => (
-                            <path
-                              key={slice.id}
-                              d={slice.path}
-                              fill={slice.color}
-                              className="transition-all duration-500 ease-in-out hover:opacity-80 cursor-pointer"
-                            >
-                              <title>{slice.name}</title>
-                            </path>
-                          ))}
-                        </svg>
-                        <div className={`absolute inset-0 m-auto w-16 h-16 rounded-full ${isDarkMode ? 'bg-[#1C3041]' : 'bg-white'}`}></div>
-                      </div>
-
-                      {/* Legenda Dinâmica */}
-                      <div className="flex-1 overflow-y-auto max-h-36 pr-2 custom-scrollbar">
-                        {tasks.map((task, index) => {
-                          const value = Number(task[chartMetric]);
-                          if (value === 0) return null;
-                          const percentage = totalChartValue > 0 ? ((value / totalChartValue) * 100).toFixed(1) : 0;
-                          
-                          return (
-                            <div key={task.id} className="flex items-center text-[10px] mb-1.5 justify-between">
-                              <div className="flex items-center flex-1 truncate pr-2">
-                                <span 
-                                  className="w-2.5 h-2.5 rounded-full mr-1.5 flex-shrink-0" 
-                                  style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}
-                                ></span>
-                                <span className={`truncate ${isDarkMode ? 'text-[#E3DBD0]' : 'text-[#223B4D]'}`} title={task.name}>
-                                  {task.name}
-                                </span>
-                              </div>
-                              <div className={`font-bold flex-shrink-0 ${isDarkMode ? 'text-[#FFD000]' : 'text-[#B07905]'}`}>
-                                {percentage}%
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Quadro de Fluxo de Pagamentos */}
-                <div className={`rounded-xl shadow-sm border overflow-hidden transition-colors ${isDarkMode ? 'bg-[#1C3041] border-[#2A455C]' : 'bg-white border-[#E3DBD0]'}`}>
-                  <div className={`px-4 py-3 border-b transition-colors flex justify-between items-center ${isDarkMode ? 'border-[#2A455C] bg-[#121F28]/80' : 'border-[#E3DBD0] bg-[#E3DBD0]/20'}`}>
-                    <h2 className={`text-base font-semibold ${isDarkMode ? 'text-[#E3DBD0]' : 'text-[#223B4D]'}`}>Projeção de Faturamento (Ref. Cláusula 9.2)</h2>
-                  </div>
-                  <div className="p-4">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                      {payments.map((payment, index) => (
-                        <div key={payment.id} className={`relative rounded-lg p-3 border flex flex-col justify-between shadow-sm transition-colors ${isDarkMode ? 'bg-[#121F28]/50 border-[#2A455C]' : 'bg-[#E3DBD0]/10 border-[#E3DBD0]'}`}>
-                          {index !== payments.length - 1 && (
-                            <div className={`hidden md:block absolute top-1/2 -right-2 transform -translate-y-1/2 z-10 ${isDarkMode ? 'text-[#2A455C]' : 'text-[#B07905]/40'}`}>
-                              <IconChevronRight className="w-5 h-5" />
-                            </div>
-                          )}
-                          <div>
-                            <div className="flex items-center mb-2">
-                              <input
-                                type="number"
-                                min="0"
-                                max="100"
-                                value={payment.percentage}
-                                onChange={(e) => handlePaymentChange(index, e.target.value)}
-                                className={`w-12 text-center text-[10px] font-bold rounded py-0.5 outline-none transition-colors ${isDarkMode ? 'bg-[#1C3041] text-[#FFD000] border border-[#FFD000]/50 focus:border-[#FFD000]' : 'bg-white text-[#223B4D] border border-[#FFD000] focus:border-[#B07905] focus:ring-1 focus:ring-[#B07905]'} shadow-sm`}
-                              />
-                              <span className={`ml-1 text-[10px] font-bold ${isDarkMode ? 'text-[#FFD000]' : 'text-[#223B4D]'}`}>%</span>
-                            </div>
-                            <h3 className={`text-xs font-medium leading-snug mb-1 ${isDarkMode ? 'text-[#94A6B5]' : 'text-[#223B4D]/80'}`}>
-                              {payment.trigger}
-                            </h3>
+                    {/* CONTEÚDO DA ABA: GESTÃO DE CRONOGRAMA */}
+                    {activeTab === 'schedule' && (
+                      <div className="space-y-4">
+                        <div className={`rounded-xl shadow-sm border overflow-hidden transition-colors ${isDarkMode ? 'bg-[#1C3041] border-[#2A455C]' : 'bg-white border-[#E3DBD0]'}`}>
+                          <div className={`px-4 py-3 border-b flex flex-col sm:flex-row sm:justify-between sm:items-center transition-colors ${isDarkMode ? 'border-[#2A455C] bg-[#121F28]/80' : 'border-[#E3DBD0] bg-[#E3DBD0]/20'}`}>
+                            <h2 className={`text-base font-semibold ${isDarkMode ? 'text-[#E3DBD0]' : 'text-[#223B4D]'}`}>Gestão Executiva de Prazos (Gantt Chart)</h2>
+                            <span className={`text-[10px] mt-1 sm:mt-0 font-medium ${isDarkMode ? 'text-[#94A6B5]' : 'text-[#223B4D]/70'}`}>Altere as datas de Início e Duração para refletir paralelismos</span>
                           </div>
-                          <p className={`text-base font-bold mt-2 border-t pt-2 transition-colors ${isDarkMode ? 'text-[#E3DBD0] border-[#2A455C]' : 'text-[#223B4D] border-[#E3DBD0]'}`}>
-                            {formatCurrency(payment.value)}
-                          </p>
+                          
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-xs text-left min-w-[800px]">
+                              <thead className={`uppercase text-[10px] font-semibold transition-colors ${isDarkMode ? 'bg-[#121F28] text-[#FFD000]' : 'bg-[#223B4D] text-[#E3DBD0]'}`}>
+                                <tr>
+                                  <th className="px-4 py-2 w-8">#</th>
+                                  <th className="px-4 py-2 w-64">Serviço Analítico</th>
+                                  <th className="px-4 py-2 text-center w-32">Início (Editável)</th>
+                                  <th className="px-4 py-2 text-center w-24">Dias</th>
+                                  <th className="px-4 py-2 text-center w-24">Término</th>
+                                  <th className="px-4 py-2 text-left">Distribuição Temporal (Gantt)</th>
+                                </tr>
+                              </thead>
+                              <tbody className={`divide-y transition-colors ${isDarkMode ? 'divide-[#2A455C]' : 'divide-[#E3DBD0]/50'}`}>
+                                {schedule.map((task, index) => {
+                                  const offsetDays = diffDays(projectMetrics.globalStart, task.startDate);
+                                  const taskDurationDays = diffDays(task.startDate, task.endDate) || 1;
+                                  const leftPct = (offsetDays / globalTotalDays) * 100;
+                                  const widthPct = (taskDurationDays / globalTotalDays) * 100;
+                                  const barColor = CHART_COLORS[index % CHART_COLORS.length];
+
+                                  return (
+                                    <tr key={task.id} className={`transition-colors group ${isDarkMode ? 'hover:bg-[#2A455C]/30' : 'hover:bg-[#E3DBD0]/10'}`}>
+                                      <td className={`px-4 py-1.5 font-medium ${isDarkMode ? 'text-[#94A6B5]' : 'text-[#223B4D]/50'}`}>{index + 1}</td>
+                                      <td className={`px-4 py-1.5 font-medium ${isDarkMode ? 'text-[#E3DBD0]' : 'text-[#223B4D]'}`}>
+                                        <div className="flex items-center">
+                                          <span className="w-2.5 h-2.5 rounded-full mr-2 flex-shrink-0 shadow-sm" style={{ backgroundColor: barColor }}></span>
+                                          <span className="truncate max-w-[220px]" title={task.name}>{task.name}</span>
+                                        </div>
+                                      </td>
+                                      <td className="px-4 py-1.5">
+                                        <div className="flex justify-center">
+                                          <input 
+                                            type="date" 
+                                            className={`w-[110px] text-center border rounded py-1 px-1 focus:ring-1 transition-all outline-none ${isDarkMode ? 'bg-[#121F28] border-[#2A455C] text-[#E3DBD0] focus:ring-[#FFD000] focus:border-[#FFD000]' : 'bg-white border-[#E3DBD0] text-[#223B4D] focus:ring-[#B07905] focus:border-[#B07905]'}`}
+                                            value={task.start}
+                                            onChange={(e) => handleTaskChange(index, 'start', e.target.value)}
+                                            style={isDarkMode ? { colorScheme: 'dark' } : {}}
+                                          />
+                                        </div>
+                                      </td>
+                                      <td className="px-4 py-1.5">
+                                        <div className="flex justify-center">
+                                          <input 
+                                            type="number" 
+                                            min="0"
+                                            className={`w-14 text-center border rounded py-1 px-1.5 focus:ring-1 transition-all outline-none ${isDarkMode ? 'bg-[#121F28] border-[#2A455C] text-[#E3DBD0] focus:ring-[#FFD000] focus:border-[#FFD000]' : 'bg-white border-[#E3DBD0] text-[#223B4D] focus:ring-[#B07905] focus:border-[#B07905]'}`}
+                                            value={task.duration}
+                                            onChange={(e) => handleTaskChange(index, 'duration', e.target.value)}
+                                          />
+                                        </div>
+                                      </td>
+                                      <td className={`px-4 py-1.5 text-center transition-colors ${isDarkMode ? 'text-[#94A6B5]' : 'text-[#223B4D]/80'}`}>
+                                        {formatDate(task.endDate)}
+                                      </td>
+                                      <td className="px-4 py-1.5 relative min-w-[200px]">
+                                        <div className={`relative w-full h-8 rounded-md shadow-inner overflow-hidden ${isDarkMode ? 'bg-[#121F28]' : 'bg-slate-200'}`}>
+                                          <div 
+                                            className="absolute top-0 h-full rounded-md shadow-md transition-all duration-300" 
+                                            style={{ left: `${leftPct}%`, width: `${widthPct}%`, backgroundColor: barColor }}
+                                          ></div>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
                         </div>
-                      ))}
-                    </div>
+
+                        {/* NOVO MÓDULO: Gráfico de Colunas de Distribuição de Esforço */}
+                        <div className={`rounded-xl shadow-sm border overflow-hidden transition-colors ${isDarkMode ? 'bg-[#1C3041] border-[#2A455C]' : 'bg-white border-[#E3DBD0]'}`}>
+                          <div className={`px-4 py-3 border-b flex items-center transition-colors ${isDarkMode ? 'border-[#2A455C] bg-[#121F28]/80' : 'border-[#E3DBD0] bg-[#E3DBD0]/20'}`}>
+                            <IconBarChart className={`w-4 h-4 mr-2 ${isDarkMode ? 'text-[#FFD000]' : 'text-[#B07905]'}`} />
+                            <h2 className={`text-base font-semibold ${isDarkMode ? 'text-[#E3DBD0]' : 'text-[#223B4D]'}`}>Distribuição de Esforço (Alocação de Tempo)</h2>
+                          </div>
+                          <div className="p-6">
+                            <div className="flex items-end justify-around h-56 w-full gap-2">
+                              {tasks.map((task, index) => {
+                                const pctOfTotal = sumTaskDurations > 0 ? ((task.duration / sumTaskDurations) * 100).toFixed(1) : 0;
+                                const heightPct = maxTaskDuration > 0 ? ((task.duration / maxTaskDuration) * 100) : 0;
+                                const barColor = CHART_COLORS[index % CHART_COLORS.length];
+
+                                return (
+                                  <div key={task.id} className="flex flex-col items-center justify-end w-full group h-full">
+                                    <span className={`text-[10px] font-bold mb-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 ${isDarkMode ? 'text-[#FFD000]' : 'text-[#B07905]'}`}>
+                                      {pctOfTotal}%
+                                    </span>
+                                    <div 
+                                      className="w-full max-w-[40px] rounded-t-md shadow-md transition-all duration-500 ease-in-out cursor-pointer hover:opacity-80"
+                                      style={{ height: `${heightPct}%`, backgroundColor: barColor, minHeight: '4px' }}
+                                      title={`${task.name}\n${task.duration} Dias Úteis\nCarga: ${pctOfTotal}% do esforço total`}
+                                    ></div>
+                                    <span className={`text-[10px] mt-3 font-medium truncate w-full text-center px-1 ${isDarkMode ? 'text-[#94A6B5]' : 'text-[#223B4D]/70'}`} title={task.name}>
+                                      Etapa {index + 1}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* CONTEÚDO DA ABA: GESTÃO FINANCEIRA */}
+                    {activeTab === 'financial' && (
+                      <div className="space-y-4">
+                        {/* Auditoria de Desvios */}
+                        <div className={`rounded-xl shadow-sm border overflow-hidden transition-colors ${isDarkMode ? 'bg-[#1C3041] border-[#2A455C]' : 'bg-white border-[#E3DBD0]'}`}>
+                          <div className={`px-4 py-3 border-b flex items-center transition-colors ${isDarkMode ? 'border-[#2A455C] bg-[#121F28]/80' : 'border-[#E3DBD0] bg-[#E3DBD0]/20'}`}>
+                            <IconActivity className={`w-4 h-4 mr-2 ${isDarkMode ? 'text-[#FFD000]' : 'text-[#B07905]'}`} />
+                            <h2 className={`text-base font-semibold ${isDarkMode ? 'text-[#E3DBD0]' : 'text-[#223B4D]'}`}>Auditoria de Desvios (Baseline vs. Simulado)</h2>
+                          </div>
+                          <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div className={`p-3 rounded-lg border transition-colors ${deviations.cost.value === 0 ? (isDarkMode ? 'bg-[#121F28] border-[#2A455C]' : 'bg-[#E3DBD0]/10 border-[#E3DBD0]') : deviations.cost.isOverrun ? 'bg-red-50/10 border-red-200' : 'bg-emerald-50/10 border-emerald-200'}`}>
+                              <div className="flex justify-between items-center mb-1.5">
+                                <span className={`text-[10px] font-bold uppercase ${isDarkMode ? 'text-[#94A6B5]' : 'text-[#223B4D]/70'}`}>Δ Financeiro (CAPEX)</span>
+                                {deviations.cost.isOverrun && <IconTrendingUp className="w-3 h-3 text-red-500" />}
+                                {deviations.cost.isSavings && <IconTrendingDown className="w-3 h-3 text-emerald-500" />}
+                                {deviations.cost.value === 0 && <IconScale className={`w-3 h-3 ${isDarkMode ? 'text-[#FFD000]' : 'text-[#B07905]'}`} />}
+                              </div>
+                              <p className={`text-base font-bold ${deviations.cost.value === 0 ? (isDarkMode ? 'text-[#E3DBD0]' : 'text-[#223B4D]') : deviations.cost.isOverrun ? 'text-red-600' : 'text-emerald-600'}`}>
+                                {deviations.cost.value > 0 ? '+' : ''}{formatCurrency(deviations.cost.value)}
+                              </p>
+                            </div>
+
+                            <div className={`p-3 rounded-lg border transition-colors ${deviations.duration.value === 0 ? (isDarkMode ? 'bg-[#121F28] border-[#2A455C]' : 'bg-[#E3DBD0]/10 border-[#E3DBD0]') : deviations.duration.isOverrun ? 'bg-red-50/10 border-red-200' : 'bg-emerald-50/10 border-emerald-200'}`}>
+                              <div className="flex justify-between items-center mb-1.5">
+                                <span className={`text-[10px] font-bold uppercase ${isDarkMode ? 'text-[#94A6B5]' : 'text-[#223B4D]/70'}`}>Δ Cronograma (Dias Globais)</span>
+                                {deviations.duration.isOverrun && <IconTrendingUp className="w-3 h-3 text-red-500" />}
+                                {deviations.duration.isSavings && <IconTrendingDown className="w-3 h-3 text-emerald-500" />}
+                                {deviations.duration.value === 0 && <IconScale className={`w-3 h-3 ${isDarkMode ? 'text-[#FFD000]' : 'text-[#B07905]'}`} />}
+                              </div>
+                              <p className={`text-base font-bold ${deviations.duration.value === 0 ? (isDarkMode ? 'text-[#E3DBD0]' : 'text-[#223B4D]') : deviations.duration.isOverrun ? 'text-red-600' : 'text-emerald-600'}`}>
+                                {deviations.duration.value > 0 ? '+' : ''}{deviations.duration.value} Dias Úteis
+                              </p>
+                            </div>
+
+                            <div className={`p-3 rounded-lg border transition-colors ${deviations.percentage.value === 0 ? (isDarkMode ? 'bg-[#121F28] border-[#2A455C]' : 'bg-[#E3DBD0]/10 border-[#E3DBD0]') : 'bg-red-50/10 border-red-200'}`}>
+                              <div className="flex justify-between items-center mb-1.5">
+                                <span className={`text-[10px] font-bold uppercase ${isDarkMode ? 'text-[#94A6B5]' : 'text-[#223B4D]/70'}`}>Δ Conformidade de Fluxo</span>
+                                {deviations.percentage.value !== 0 ? <IconAlertCircle className="w-3 h-3 text-red-500" /> : <IconCheckCircle2 className="w-3 h-3 text-emerald-500" />}
+                              </div>
+                              <p className={`text-base font-bold ${deviations.percentage.value === 0 ? (isDarkMode ? 'text-[#E3DBD0]' : 'text-[#223B4D]') : 'text-red-600'}`}>
+                                {deviations.percentage.value > 0 ? '+' : ''}{deviations.percentage.value}% (Total: {totalPercentage}%)
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col lg:flex-row gap-4">
+                          {/* Tabela de Alocação de Custos */}
+                          <div className={`w-full lg:w-2/3 rounded-xl shadow-sm border overflow-hidden transition-colors ${isDarkMode ? 'bg-[#1C3041] border-[#2A455C]' : 'bg-white border-[#E3DBD0]'}`}>
+                            <div className={`px-4 py-3 border-b transition-colors ${isDarkMode ? 'border-[#2A455C] bg-[#121F28]/80' : 'border-[#E3DBD0] bg-[#E3DBD0]/20'}`}>
+                              <h2 className={`text-base font-semibold ${isDarkMode ? 'text-[#E3DBD0]' : 'text-[#223B4D]'}`}>Alocação de Custos por Etapa</h2>
+                            </div>
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-xs text-left">
+                                <thead className={`uppercase text-[10px] font-semibold transition-colors ${isDarkMode ? 'bg-[#121F28] text-[#FFD000]' : 'bg-[#223B4D] text-[#E3DBD0]'}`}>
+                                  <tr>
+                                    <th className="px-4 py-2 w-8">#</th>
+                                    <th className="px-4 py-2">Serviço Analítico</th>
+                                    <th className="px-4 py-2 text-right">Custo Alocado (R$)</th>
+                                  </tr>
+                                </thead>
+                                <tbody className={`divide-y transition-colors ${isDarkMode ? 'divide-[#2A455C]' : 'divide-[#E3DBD0]/50'}`}>
+                                  {tasks.map((task, index) => (
+                                    <tr key={task.id} className={`transition-colors ${isDarkMode ? 'hover:bg-[#2A455C]/30' : 'hover:bg-[#E3DBD0]/10'}`}>
+                                      <td className={`px-4 py-2 font-medium ${isDarkMode ? 'text-[#94A6B5]' : 'text-[#223B4D]/50'}`}>{index + 1}</td>
+                                      <td className={`px-4 py-2 font-medium ${isDarkMode ? 'text-[#E3DBD0]' : 'text-[#223B4D]'}`}>
+                                        <div className="flex items-center">
+                                          <span className="w-2.5 h-2.5 rounded-full mr-2 flex-shrink-0" style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}></span>
+                                          {task.name}
+                                        </div>
+                                      </td>
+                                      <td className="px-4 py-2">
+                                        <div className="flex justify-end">
+                                          <input 
+                                            type="number" min="0" step="1000"
+                                            className={`w-32 text-right border rounded py-1 px-1.5 focus:ring-1 transition-all outline-none ${isDarkMode ? 'bg-[#121F28] border-[#2A455C] text-[#E3DBD0] focus:ring-[#FFD000]' : 'bg-white border-[#E3DBD0] text-[#223B4D] focus:ring-[#B07905]'}`}
+                                            value={task.cost}
+                                            onChange={(e) => handleTaskChange(index, 'cost', e.target.value)}
+                                          />
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+
+                          {/* Gráfico Analítico */}
+                          <div className={`w-full lg:w-1/3 rounded-xl shadow-sm border p-4 flex flex-col transition-colors ${isDarkMode ? 'bg-[#1C3041] border-[#2A455C]' : 'bg-white border-[#E3DBD0]'}`}>
+                            <h2 className={`text-sm font-semibold mb-6 text-center ${isDarkMode ? 'text-[#E3DBD0]' : 'text-[#223B4D]'}`}>Distribuição de CAPEX</h2>
+                            <div className="relative w-40 h-40 mx-auto mb-6">
+                              <svg viewBox="-1.1 -1.1 2.2 2.2" className="transform -rotate-90 w-full h-full drop-shadow-md">
+                                {pieChartSlices.map(slice => (
+                                  <path key={slice.id} d={slice.path} fill={slice.color} className="transition-all duration-500 ease-in-out hover:opacity-80 cursor-pointer">
+                                    <title>{slice.name}</title>
+                                  </path>
+                                ))}
+                              </svg>
+                              <div className={`absolute inset-0 m-auto w-20 h-20 rounded-full ${isDarkMode ? 'bg-[#1C3041]' : 'bg-white'}`}></div>
+                            </div>
+                            <div className="flex-1 overflow-y-auto max-h-40 pr-2 custom-scrollbar">
+                              {tasks.map((task, index) => {
+                                const value = Number(task.cost);
+                                if (value === 0) return null;
+                                const pct = projectMetrics.totalCost > 0 ? ((value / projectMetrics.totalCost) * 100).toFixed(1) : 0;
+                                return (
+                                  <div key={task.id} className="flex items-center text-[10px] mb-1.5 justify-between">
+                                    <div className="flex items-center flex-1 truncate pr-2">
+                                      <span className="w-2.5 h-2.5 rounded-full mr-1.5 flex-shrink-0" style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}></span>
+                                      <span className={`truncate ${isDarkMode ? 'text-[#E3DBD0]' : 'text-[#223B4D]'}`} title={task.name}>{task.name}</span>
+                                    </div>
+                                    <div className={`font-bold flex-shrink-0 ${isDarkMode ? 'text-[#FFD000]' : 'text-[#B07905]'}`}>{pct}%</div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Projeção de Faturamento */}
+                        <div className={`rounded-xl shadow-sm border overflow-hidden transition-colors ${isDarkMode ? 'bg-[#1C3041] border-[#2A455C]' : 'bg-white border-[#E3DBD0]'}`}>
+                          <div className={`px-4 py-3 border-b transition-colors ${isDarkMode ? 'border-[#2A455C] bg-[#121F28]/80' : 'border-[#E3DBD0] bg-[#E3DBD0]/20'}`}>
+                            <h2 className={`text-base font-semibold ${isDarkMode ? 'text-[#E3DBD0]' : 'text-[#223B4D]'}`}>Projeção de Faturamento (Ref. Cláusula 9.2)</h2>
+                          </div>
+                          <div className="p-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+                            {payments.map((payment, index) => (
+                              <div key={payment.id} className={`relative rounded-lg p-3 border flex flex-col justify-between shadow-sm transition-colors ${isDarkMode ? 'bg-[#121F28]/50 border-[#2A455C]' : 'bg-[#E3DBD0]/10 border-[#E3DBD0]'}`}>
+                                {index !== payments.length - 1 && <div className={`hidden md:block absolute top-1/2 -right-2 transform -translate-y-1/2 z-10 ${isDarkMode ? 'text-[#2A455C]' : 'text-[#B07905]/40'}`}><IconChevronRight className="w-5 h-5" /></div>}
+                                <div>
+                                  <div className="flex items-center mb-2">
+                                    <input
+                                      type="number" min="0" max="100"
+                                      value={payment.percentage}
+                                      onChange={(e) => handlePaymentChange(index, e.target.value)}
+                                      className={`w-12 text-center text-[10px] font-bold rounded py-0.5 outline-none transition-colors ${isDarkMode ? 'bg-[#1C3041] text-[#FFD000] border border-[#FFD000]/50' : 'bg-white text-[#223B4D] border border-[#FFD000]'}`}
+                                    />
+                                    <span className={`ml-1 text-[10px] font-bold ${isDarkMode ? 'text-[#FFD000]' : 'text-[#223B4D]'}`}>%</span>
+                                  </div>
+                                  <h3 className={`text-xs font-medium leading-snug mb-1 ${isDarkMode ? 'text-[#94A6B5]' : 'text-[#223B4D]/80'}`}>{payment.trigger}</h3>
+                                </div>
+                                <p className={`text-base font-bold mt-2 border-t pt-2 transition-colors ${isDarkMode ? 'text-[#E3DBD0] border-[#2A455C]' : 'text-[#223B4D] border-[#E3DBD0]'}`}>
+                                  {formatCurrency(payment.value)}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
                   </div>
                 </div>
+              );
+            }
 
-              </div>
-            </div>
-          );
-        }
+            const root = ReactDOM.createRoot(document.getElementById('root'));
+            root.render(<App />);
+        };
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        renderApp();
     </script>
 </body>
 </html>
